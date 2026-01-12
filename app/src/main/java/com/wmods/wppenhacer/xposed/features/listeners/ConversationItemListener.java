@@ -81,7 +81,7 @@ public class ConversationItemListener extends Feature {
                                     }
                                 }
 
-                                // --- START: UPDATED Minimalist Chat (Aggressive) ---
+                                // --- START: UPDATED Minimalist Chat (Aggressived) ---
                         try {
                             android.content.Context ctx = viewGroup.getContext();
                             boolean mediaFound = false;
