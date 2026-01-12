@@ -52,66 +52,62 @@ public class ConversationItemListener extends Feature {
                         if (fMessageObj == null) return;
                         var fMessage = new FMessageWpp(fMessageObj);
 
-                        // --- START: ID-BASED MEDIA MOD ---
-                        try {
-                            android.content.Context ctx = viewGroup.getContext();
-                            
-                            // 1. Direct ID Search (from your screenshots)
-                            int imageResId = ctx.getResources().getIdentifier("image", "id", ctx.getPackageName());
-                            int mediaContainerId = ctx.getResources().getIdentifier("media_container", "id", ctx.getPackageName()); // For Video
-                            
-                            if (imageResId != 0) {
-                                View imageView = viewGroup.findViewById(imageResId);
+                        // --- START: MEDIA FIX (Async) ---
+                        viewGroup.post(() -> {
+                            try {
+                                android.content.Context ctx = viewGroup.getContext();
+                                int imageResId = ctx.getResources().getIdentifier("image", "id", ctx.getPackageName());
                                 
-                                // Check if Image exists and is visible
-                                if (imageView != null && imageView.getVisibility() == View.VISIBLE) {
-                                    
-                                    // 2. DETECT VIDEO vs IMAGE
-                                    // Agar 'media_container' exist karta hai, to ye VIDEO hai
-                                    boolean isVideo = false;
-                                    if (mediaContainerId != 0 && viewGroup.findViewById(mediaContainerId) != null) {
-                                        isVideo = true;
-                                    }
-
-                                    // 3. APPLY LOGIC
-                                    if (isVideo) {
-                                        // === VIDEO: Resize Only ===
-                                        ViewGroup.LayoutParams params = imageView.getLayoutParams();
-                                        // Agar size bada hai, to use chota kar do (Thumbnail size)
-                                        if (params.height > 300) { 
-                                            params.width = 450; 
-                                            params.height = 250;
-                                            imageView.setLayoutParams(params);
-                                        }
-                                    } else {
-                                        // === IMAGE: Hide & Button ===
-                                        imageView.setVisibility(View.GONE); // Hide original
+                                if (imageResId != 0) {
+                                    View imageView = viewGroup.findViewById(imageResId);
+                                    if (imageView != null) {
                                         
-                                        // Button Banao
-                                        String myTag = "BTN_MEDIA_FIX";
-                                        if (viewGroup.findViewWithTag(myTag) == null) {
-                                            TextView btn = new TextView(ctx);
-                                            btn.setText("📷 View Photo");
-                                            btn.setTextColor(Color.WHITE);
-                                            btn.setTypeface(null, Typeface.BOLD);
-                                            btn.setPadding(30, 20, 30, 20);
-                                            btn.setBackgroundColor(0xFF333333); // Dark Gray
-                                            btn.setTag(myTag);
-                                            
-                                            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(-2, -2);
-                                            params.gravity = Gravity.CENTER;
-                                            
-                                            // Click Fix: Trigger Hidden Image
-                                            final View target = imageView;
-                                            btn.setOnClickListener(v -> target.performClick());
+                                        // Video Check
+                                        boolean isVideo = false;
+                                        int mediaContainerId = ctx.getResources().getIdentifier("media_container", "id", ctx.getPackageName());
+                                        if (mediaContainerId != 0 && viewGroup.findViewById(mediaContainerId) != null) {
+                                            isVideo = true;
+                                        }
 
-                                            viewGroup.addView(btn, params);
+                                        if (isVideo) {
+                                            // Resize Video
+                                            ViewGroup.LayoutParams params = imageView.getLayoutParams();
+                                            if (params.height > 300) { 
+                                                params.width = 450; 
+                                                params.height = 250;
+                                                imageView.setLayoutParams(params);
+                                            }
+                                        } else {
+                                            // Hide Image & Show Button
+                                            if (imageView.getVisibility() != View.GONE) {
+                                                imageView.setVisibility(View.GONE);
+                                            }
+                                            
+                                            // Button Logic
+                                            String myTag = "BTN_MEDIA_FIX_V3";
+                                            if (viewGroup.findViewWithTag(myTag) == null) {
+                                                TextView btn = new TextView(ctx);
+                                                btn.setText("📷 Photo");
+                                                btn.setTextColor(Color.WHITE);
+                                                btn.setTypeface(null, Typeface.BOLD);
+                                                btn.setPadding(30, 20, 30, 20);
+                                                btn.setBackgroundColor(0xFF333333);
+                                                btn.setGravity(Gravity.CENTER);
+                                                btn.setTag(myTag);
+                                                
+                                                FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(-2, -2);
+                                                params.gravity = Gravity.CENTER;
+                                                
+                                                final View target = imageView;
+                                                btn.setOnClickListener(v -> target.performClick());
+                                                viewGroup.addView(btn, params);
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        } catch (Throwable t) {}
-                        // --- END: ID-BASED MEDIA MOD ---
+                            } catch (Throwable t) {}
+                        });
+                        // --- END: MEDIA FIX ---
 
                         for (OnConversationItemListener listener : conversationListeners) {
                             viewGroup.post(() -> listener.onItemBind(fMessage, viewGroup));
