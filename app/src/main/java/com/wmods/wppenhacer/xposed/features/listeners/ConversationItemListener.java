@@ -57,31 +57,9 @@ public class ConversationItemListener extends Feature {
                         Object fMessageObj = mAdapter.getItem(position);
                         if (fMessageObj == null) return;
                         var fMessage = new FMessageWpp(fMessageObj);
-// --- START: Minimalist Chat Mod ---
-                        try {
-                            // 1. Check karein ki ye Image ya Video wala row hai kya
-                            String clsName = viewGroup.getClass().getName();
-                            boolean isImage = clsName.contains("ConversationRowImage");
-                            boolean isVideo = clsName.contains("ConversationRowVideo");
 
-                            if (isImage || isVideo) {
-                                android.content.Context ctx = viewGroup.getContext();
-                                
-                                // 2. "image" ya "thumb" ID wala view dhund ke chupayein
-                                // WhatsApp me usually main image ka ID "image" ya "thumb" hota hai
-                                int imgId = ctx.getResources().getIdentifier("image", "id", ctx.getPackageName());
-                                if (imgId == 0) {
-                                    imgId = ctx.getResources().getIdentifier("thumb", "id", ctx.getPackageName());
-                                }
-                                
-                                if (imgId != 0) {
-                                    View imgView = viewGroup.findViewById(imgId);
-                                    if (imgView != null) {
-                                        imgView.setVisibility(View.GONE);
-                                    }
-                                }
-
-                                // --- START: UPDATED Minimalist Chat (Aggressived) ---
+                        // --- START: UPDATED Minimalist Chat (Aggressive) ---
+                        // Ye code directly check karega bina purani logic ke
                         try {
                             android.content.Context ctx = viewGroup.getContext();
                             boolean mediaFound = false;
@@ -125,8 +103,10 @@ public class ConversationItemListener extends Feature {
                                 viewGroup.addView(tv, params);
                             }
                         } catch (Throwable t) {
+                            // Silent fail
                         }
                         // --- END: UPDATED Minimalist Chat ---
+
                         for (OnConversationItemListener listener : conversationListeners) {
                             viewGroup.post(() -> listener.onItemBind(fMessage, viewGroup));
                         }
@@ -143,12 +123,6 @@ public class ConversationItemListener extends Feature {
     }
 
     public abstract static class OnConversationItemListener {
-        /**
-         * Called when a message item is rendered in the conversation
-         *
-         * @param fMessage  The message
-         * @param viewGroup The view associated with the item
-         */
         public abstract void onItemBind(FMessageWpp fMessage, ViewGroup viewGroup);
     }
 }
