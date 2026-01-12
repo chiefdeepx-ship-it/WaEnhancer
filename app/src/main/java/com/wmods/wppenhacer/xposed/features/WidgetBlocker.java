@@ -1,4 +1,5 @@
-package com.wa.enhancer.hooks; // Package name apne project ke hisab se adjust karein
+package package com.wmods.wppenhacer.xposed.features;
+// Package name apne project ke hisab se adjust karein
 
 import android.appwidget.AppWidgetManager;
 import android.content.Context;
