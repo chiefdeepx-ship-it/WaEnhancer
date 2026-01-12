@@ -53,14 +53,13 @@ public class ConversationItemListener extends Feature {
                 if (adapter == null) return;
                 mAdapter = adapter;
 
-                // getView मेथड को हुक कर रहे हैं
                 var method = mAdapter.getClass().getDeclaredMethod("getView", int.class, View.class, ViewGroup.class);
                 XposedBridge.hookMethod(method, new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                         if (param.thisObject != mAdapter) return;
 
-                        // FIX 1: args[1] की जगह getResult() यूज़ करें। यह असली View है जो स्क्रीन पर दिखेगा।
+                        // Result View (Asli View jo screen pe hai)
                         Object resultView = param.getResult();
                         if (!(resultView instanceof ViewGroup)) return;
                         final ViewGroup viewGroup = (ViewGroup) resultView;
@@ -70,75 +69,82 @@ public class ConversationItemListener extends Feature {
                         if (fMessageObj == null) return;
                         var fMessage = new FMessageWpp(fMessageObj);
 
-                        // --- FIX START: DIRECT EXECUTION (No post() to stop flickering) ---
+                        // --- FINAL FIX: UI + CLICK SEARCH ---
                         try {
                             android.content.Context ctx = viewGroup.getContext();
                             int imageResId = ctx.getResources().getIdentifier("image", "id", ctx.getPackageName());
-                            String myTag = "FAKE_VIEW_ONCE_BTN_FINAL";
+                            String myTag = "FAKE_VIEW_ONCE_BTN_V3";
 
                             if (imageResId != 0) {
                                 View originalImageView = viewGroup.findViewById(imageResId);
                                 View existingBtn = viewGroup.findViewWithTag(myTag);
 
-                                // Logic: अगर असली इमेज विज़िबल है, तो उसे छुपाओ और बटन दिखाओ।
-                                // अगर असली इमेज नहीं है (यानी यह टेक्स्ट मैसेज है), तो बटन भी छुपा दो।
+                                // Check: Kya ye Image Message hai? (Text message me ye null ya GONE hoga)
                                 if (originalImageView != null && originalImageView.getVisibility() == View.VISIBLE) {
                                     
-                                    // 1. इमेज छुपाओ
+                                    // 1. Asli Image ko HIDE karo
                                     originalImageView.setVisibility(View.GONE);
 
-                                    // 2. बटन दिखाओ या बनाओ
+                                    // 2. Button Banao (Agar nahi hai)
                                     if (existingBtn == null) {
                                         TextView btn = new TextView(ctx);
-                                        btn.setText("📷 Photo");
+                                        // UI Styling (Khali box fix)
+                                        btn.setText(" \uD83D\uDCF7  Photo "); // Camera Icon + Text
                                         btn.setTextColor(Color.WHITE);
                                         btn.setTypeface(null, Typeface.BOLD);
-                                        btn.setTextSize(16);
-                                        btn.setBackgroundColor(0xFF333333); // Dark Gray
-                                        btn.setPadding(40, 25, 40, 25);
+                                        btn.setTextSize(15);
+                                        btn.setBackgroundColor(0xFF252525); // Dark Gray Background
+                                        btn.setPadding(30, 20, 30, 20); // Padding taaki text dikhe
                                         btn.setGravity(Gravity.CENTER);
                                         btn.setTag(myTag);
 
-                                        // Layout Params (Center in parent)
+                                        // Layout Params (Taaki box sikud na jaye)
                                         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                                                 ViewGroup.LayoutParams.WRAP_CONTENT,
                                                 ViewGroup.LayoutParams.WRAP_CONTENT
                                         );
                                         params.gravity = Gravity.CENTER;
+                                        btn.setLayoutParams(params);
 
-                                        // 3. CLICK FIX: Parent पर क्लिक करवाएं
-                                        // क्योंकि अक्सर क्लिक लिस्नर इमेज पर नहीं, उसके कंटेनर पर होता है
-                                        final View clickTarget = (View) originalImageView.getParent();
+                                        // 3. CLICK FIX (MAGIC LOOP)
+                                        // Hum upar ja kar dhundenge ki "Click" sunne wala kaun hai
                                         btn.setOnClickListener(v -> {
-                                            if (clickTarget != null) {
-                                                clickTarget.performClick();
+                                            View parent = (View) originalImageView.getParent();
+                                            // Loop: Jab tak koi Click Listener wala view na mile, upar jao
+                                            while (parent != null) {
+                                                if (parent.hasOnClickListeners()) {
+                                                    parent.performClick(); // Mil gaya! Click karo
+                                                    break;
+                                                }
+                                                if (parent.getParent() instanceof View) {
+                                                    parent = (View) parent.getParent();
+                                                } else {
+                                                    break;
+                                                }
                                             }
                                         });
 
-                                        // बटन को व्यू में जोड़ें
+                                        // Button ko Parent me add karo
                                         if (originalImageView.getParent() instanceof ViewGroup) {
-                                            ((ViewGroup) originalImageView.getParent()).addView(btn, params);
+                                            ((ViewGroup) originalImageView.getParent()).addView(btn);
                                         }
                                     } else {
-                                        // बटन पहले से है, तो उसे विज़िबल करें
+                                        // Agar button hai, to use Visible rakho
                                         existingBtn.setVisibility(View.VISIBLE);
-                                        // यह सुनिश्चित करें कि यह सबसे ऊपर (front) रहे
-                                        existingBtn.bringToFront();
                                     }
                                 } else {
-                                    // MIXING FIX: अगर यह इमेज मैसेज नहीं है (जैसे टेक्स्ट), तो हमारा बटन नहीं दिखना चाहिए
+                                    // Agar ye Text message hai, aur galti se button ban gaya tha, to use hatao
                                     if (existingBtn != null) {
                                         existingBtn.setVisibility(View.GONE);
                                     }
                                 }
                             }
                         } catch (Throwable t) {
-                            // Ignore errors safely
+                            // Ignore
                         }
-                        // --- FIX END ---
+                        // --- END FIX ---
 
                         for (OnConversationItemListener listener : conversationListeners) {
-                            // listener को अभी भी post में रखें ताकि क्रैश न हो अगर user code heavy हो
                             viewGroup.post(() -> listener.onItemBind(fMessage, viewGroup));
                         }
                     }
