@@ -57,7 +57,54 @@ public class ConversationItemListener extends Feature {
                         Object fMessageObj = mAdapter.getItem(position);
                         if (fMessageObj == null) return;
                         var fMessage = new FMessageWpp(fMessageObj);
+// --- START: Minimalist Chat Mod ---
+                        try {
+                            // 1. Check karein ki ye Image ya Video wala row hai kya
+                            String clsName = viewGroup.getClass().getName();
+                            boolean isImage = clsName.contains("ConversationRowImage");
+                            boolean isVideo = clsName.contains("ConversationRowVideo");
 
+                            if (isImage || isVideo) {
+                                android.content.Context ctx = viewGroup.getContext();
+                                
+                                // 2. "image" ya "thumb" ID wala view dhund ke chupayein
+                                // WhatsApp me usually main image ka ID "image" ya "thumb" hota hai
+                                int imgId = ctx.getResources().getIdentifier("image", "id", ctx.getPackageName());
+                                if (imgId == 0) {
+                                    imgId = ctx.getResources().getIdentifier("thumb", "id", ctx.getPackageName());
+                                }
+                                
+                                if (imgId != 0) {
+                                    View imgView = viewGroup.findViewById(imgId);
+                                    if (imgView != null) {
+                                        imgView.setVisibility(View.GONE);
+                                    }
+                                }
+
+                                // 3. Apna Text Add karein (Agar pehle se nahi hai)
+                                String myTag = "MINIMAL_TEXT";
+                                if (viewGroup.findViewWithTag(myTag) == null) {
+                                    android.widget.TextView tv = new android.widget.TextView(ctx);
+                                    tv.setText(isImage ? "=> 📷 Image" : "=> 🎥 Video");
+                                    tv.setTextSize(14); // Text size
+                                    tv.setTextColor(android.graphics.Color.DKGRAY); // Color
+                                    tv.setBackgroundColor(0x20000000); // Halka sa background
+                                    tv.setPadding(15, 10, 15, 10);
+                                    tv.setTag(myTag); // Tag lagaya taaki duplicate na bane
+                                    
+                                    // Layout Params taaki ye beech me dikhe
+                                    android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                                    );
+                                    params.gravity = android.view.Gravity.CENTER;
+                                    viewGroup.addView(tv, params);
+                                }
+                            }
+                        } catch (Throwable t) {
+                            // Agar koi error aaye to crash mat hona, bas ignore karna
+                        }
+                        // --- END: Minimalist Chat Mod ---
                         for (OnConversationItemListener listener : conversationListeners) {
                             viewGroup.post(() -> listener.onItemBind(fMessage, viewGroup));
                         }
