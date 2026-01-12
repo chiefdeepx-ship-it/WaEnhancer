@@ -39,7 +39,7 @@ public class ContactItemListener extends Feature {
                 try {
                     android.content.Context ctx = view.getContext();
 
-                    // 1. DP HIDE
+                    // 1. DP HIDE (Original Code Logic - GONE)
                     String[] killList = {"contact_selector", "contact_photo_row", "contactpicker_row_photo", "photo_btn"};
                     for (String id : killList) {
                         int resId = ctx.getResources().getIdentifier(id, "id", ctx.getPackageName());
@@ -53,7 +53,26 @@ public class ContactItemListener extends Feature {
                         }
                     }
 
-                    // 2. CONTAINER SHIFT (Left se gap banao, Right se kato mat)
+                    // 2. MESSAGE & DATE HIDE (New Logic - INVISIBLE)
+                    // Ye dikhenge nahi par JAGAH gherenge taaki chats chipke nahi
+                    String[] invisibleList = {
+                        "single_msg_tv",          // Message Preview
+                        "conversations_row_date", // Date/Time
+                        "date_time"               // Backup Date ID
+                    };
+
+                    for (String id : invisibleList) {
+                        int resId = ctx.getResources().getIdentifier(id, "id", ctx.getPackageName());
+                        if (resId != 0) {
+                            View target = view.findViewById(resId);
+                            if (target != null) {
+                                target.setVisibility(View.INVISIBLE); 
+                            }
+                        }
+                    }
+
+                    // 3. CONTAINER SHIFT (Original Code Logic)
+                    // Isko waise hi rakha hai jaisa aapne diya tha
                     int textContainerId = ctx.getResources().getIdentifier("contact_row_container", "id", ctx.getPackageName());
                     if (textContainerId != 0) {
                         View textContainer = view.findViewById(textContainerId);
@@ -61,25 +80,13 @@ public class ContactItemListener extends Feature {
                             // Left se 60px khiskao (Naam ke liye jagah)
                             textContainer.setTranslationX(60f); 
                             
-                            // Right side se 120px padding do taaki dabba screen ke bahar na nikle
+                            // Right side se 120px padding
                             textContainer.setPadding(0, textContainer.getPaddingTop(), 120, textContainer.getPaddingBottom());
                         }
                     }
 
-                    // 3. DATE FIX (Correct ID: conversations_row_date)
-                    // Hum purani aur nayi dono IDs check kar lenge safety ke liye
-                    String[] dateIds = {"conversations_row_date", "date_time"};
-                    
-                    for (String dId : dateIds) {
-                        int dateResId = ctx.getResources().getIdentifier(dId, "id", ctx.getPackageName());
-                        if (dateResId != 0) {
-                            View dateView = view.findViewById(dateResId);
-                            if (dateView != null) {
-                                // Container +60 gaya hai, Date ko wapas -120 lao taaki wo dikhe
-                                dateView.setTranslationX(-120f);
-                            }
-                        }
-                    }
+                    // Note: Date shifting logic hata diya hai kyunki date ab INVISIBLE hai, 
+                    // toh use move karne ki zaroorat nahi hai.
 
                 } catch (Throwable t) {}
                 // --- END: FINAL ID FIX ---
