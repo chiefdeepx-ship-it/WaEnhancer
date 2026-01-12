@@ -1,124 +1,193 @@
 package com.wmods.wppenhacer.xposed.features.listeners;
 
+import android.content.Context;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView; // Zaruri Import
-import android.util.DisplayMetrics; // Screen Size naapne ke liye
+import android.widget.Button; // TextView nahi, ab Button use karenge
+import android.widget.FrameLayout;
+import android.widget.HeaderViewListAdapter;
+import android.widget.LinearLayout;
+import android.widget.ListAdapter;
+import android.widget.ListView;
+import android.widget.RelativeLayout;
+
 import androidx.annotation.NonNull;
+
 import com.wmods.wppenhacer.xposed.core.Feature;
-import com.wmods.wppenhacer.xposed.core.components.WaContactWpp;
-import com.wmods.wppenhacer.xposed.core.devkit.Unobfuscator;
-import com.wmods.wppenhacer.xposed.utils.ReflectionUtils;
+import com.wmods.wppenhacer.xposed.core.WppCore;
+import com.wmods.wppenhacer.xposed.core.components.FMessageWpp;
+
 import java.util.HashSet;
+
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
 
-public class ContactItemListener extends Feature {
+public class ConversationItemListener extends Feature {
 
-    public static HashSet<OnContactItemListener> contactListeners = new HashSet<>();
+    public static HashSet<OnConversationItemListener> conversationListeners = new HashSet<>();
+    private static ListAdapter mAdapter;
 
-    public ContactItemListener(@NonNull ClassLoader loader, @NonNull XSharedPreferences preferences) {
+    public ConversationItemListener(@NonNull ClassLoader loader, @NonNull XSharedPreferences preferences) {
         super(loader, preferences);
     }
 
+    public static ListAdapter getAdapter() { return mAdapter; }
+
     @Override
     public void doHook() throws Throwable {
-        var onChangeStatus = Unobfuscator.loadOnChangeStatus(classLoader);
-        var field1 = Unobfuscator.loadViewHolderField1(classLoader);
-        var absViewHolderClass = Unobfuscator.loadAbsViewHolder(classLoader);
-
-        XposedBridge.hookMethod(onChangeStatus, new XC_MethodHook() {
+        XposedHelpers.findAndHookMethod(ListView.class, "setAdapter", ListAdapter.class, new XC_MethodHook() {
             @Override
-            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                var viewHolder = field1.get(param.thisObject);
-                var object = param.args[0];
-                var waContact = new WaContactWpp(object);
-                var viewField = ReflectionUtils.findFieldUsingFilter(absViewHolderClass, field -> field.getType() == View.class);
-                var view = (View) viewField.get(viewHolder);
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                if (!WppCore.getCurrentActivity().getClass().getSimpleName().equals("Conversation")) return;
+                if (((ListView) param.thisObject).getId() != android.R.id.list) return;
 
-                // --- START: FINAL OVERLAP KILLER FIX ---
-                try {
-                    android.content.Context ctx = view.getContext();
-                    
-                    // 1. SCREEN SIZE CALCULATION (Ganit)
-                    // Hamein pata karna hai ki screen kitni choudi hai taaki text ko limit kar sakein
-                    DisplayMetrics metrics = ctx.getResources().getDisplayMetrics();
-                    int screenWidth = metrics.widthPixels;
-                    // Safe Width = Screen - (Shift + Date Space + Padding)
-                    // Approx 350px minus kar rahe hain taaki Text date se na takraye
-                    int maxAllowedWidth = screenWidth - 350; 
-
-                    // 2. DP HIDE (Purana logic)
-                    String[] killList = {"contact_selector", "contact_photo_row", "contactpicker_row_photo", "photo_btn"};
-                    for (String id : killList) {
-                        int resId = ctx.getResources().getIdentifier(id, "id", ctx.getPackageName());
-                        if (resId != 0) {
-                            View target = view.findViewById(resId);
-                            if (target != null) {
-                                target.setVisibility(View.GONE);
-                                ViewGroup.LayoutParams lp = target.getLayoutParams();
-                                if (lp != null) { lp.width = 0; target.setLayoutParams(lp); }
-                            }
-                        }
-                    }
-
-                    // 3. CONTAINER SHIFT (Sabko Right le chalo +60)
-                    int containerId = ctx.getResources().getIdentifier("contact_row_container", "id", ctx.getPackageName());
-                    if (containerId != 0) {
-                        View container = view.findViewById(containerId);
-                        if (container != null) {
-                            container.setTranslationX(60f); 
-                            container.setPadding(0, container.getPaddingTop(), 0, container.getPaddingBottom());
-                        }
-                    }
-
-                    // 4. NAME LIMIT FIX (The Overlap Solution) [ID: conversations_row_contact_name]
-                    int nameId = ctx.getResources().getIdentifier("conversations_row_contact_name", "id", ctx.getPackageName());
-                    if (nameId != 0) {
-                        View nameView = view.findViewById(nameId);
-                        // Check karo ki ye TextView hi hai na
-                        if (nameView instanceof TextView) {
-                            // YAHAN HAI MAGIC: setMaxWidth()
-                            // Ye text ko bolta hai: "Is pixel se aage mat badhna"
-                            ((TextView) nameView).setMaxWidth(maxAllowedWidth);
-                        }
-                    }
-
-                    // 5. MESSAGE LIMIT FIX (The Overflow Solution) [ID: single_msg_tv]
-                    int msgId = ctx.getResources().getIdentifier("single_msg_tv", "id", ctx.getPackageName());
-                    if (msgId != 0) {
-                        View msgView = view.findViewById(msgId);
-                        if (msgView instanceof TextView) {
-                            // Message ko bhi same limit do taaki wo screen se bahar na bhage
-                            ((TextView) msgView).setMaxWidth(maxAllowedWidth);
-                        }
-                    }
-
-                    // 6. DATE FIX (Wapas khicho) [ID: conversations_row_date]
-                    // ID update kar di hai jo screenshot me thi
-                    int dateId = ctx.getResources().getIdentifier("conversations_row_date", "id", ctx.getPackageName());
-                    if (dateId != 0) {
-                        View dateView = view.findViewById(dateId);
-                        if (dateView != null) {
-                            // Container +60 gaya hai, Date ko wapas -120 lao
-                            dateView.setTranslationX(-120f);
-                        }
-                    }
-
-                } catch (Throwable t) {}
-                // --- END: FINAL OVERLAP KILLER FIX ---
-
-                var userJid = waContact.getUserJid();
-                if (userJid.isNull()) return;
-
-                for (OnContactItemListener listener : contactListeners) {
-                    listener.onBind(waContact, view);
+                ListAdapter adapter = (ListAdapter) param.args[0];
+                if (adapter instanceof HeaderViewListAdapter) {
+                    adapter = ((HeaderViewListAdapter) adapter).getWrappedAdapter();
                 }
+                if (adapter == null) return;
+                mAdapter = adapter;
+
+                var method = mAdapter.getClass().getDeclaredMethod("getView", int.class, View.class, ViewGroup.class);
+                XposedBridge.hookMethod(method, new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                        if (param.thisObject != mAdapter) return;
+
+                        Object resultView = param.getResult();
+                        if (!(resultView instanceof ViewGroup)) return;
+                        final ViewGroup viewGroup = (ViewGroup) resultView;
+
+                        var position = (int) param.args[0];
+                        Object fMessageObj = mAdapter.getItem(position);
+                        if (fMessageObj == null) return;
+                        var fMessage = new FMessageWpp(fMessageObj);
+
+                        // --- FINAL BUTTON FIX START ---
+                        try {
+                            Context ctx = viewGroup.getContext();
+                            int imageResId = ctx.getResources().getIdentifier("image", "id", ctx.getPackageName());
+                            String myTag = "FAKE_BTN_REAL_BUTTON";
+
+                            if (imageResId != 0) {
+                                View originalImageView = viewGroup.findViewById(imageResId);
+                                View existingBtn = viewGroup.findViewWithTag(myTag);
+
+                                // Logic: Sirf tab chalao jab Image VISIBLE ho (Yaani Photo Message hai)
+                                if (originalImageView != null && originalImageView.getVisibility() == View.VISIBLE) {
+                                    
+                                    // 1. Image ko HIDE karo (GONE)
+                                    originalImageView.setVisibility(View.GONE);
+
+                                    // 2. Button Check
+                                    if (existingBtn == null) {
+                                        // **CHANGE:** Use 'Button' class instead of TextView
+                                        Button btn = new Button(ctx);
+                                        btn.setTag(myTag);
+
+                                        // --- STYLING ---
+                                        btn.setText("📷 PHOTO"); // Simple text
+                                        btn.setTextColor(Color.WHITE); // White Text
+                                        btn.setBackgroundColor(Color.DKGRAY); // Dark Grey Background
+                                        btn.setTextSize(14);
+                                        btn.setPadding(20, 10, 20, 10);
+                                        btn.setGravity(Gravity.CENTER);
+                                        
+                                        // Remove default capitalization and shadow if any
+                                        btn.setAllCaps(true);
+                                        btn.setMinHeight(0); // Remove default button bulk
+                                        btn.setMinWidth(0);
+
+                                        // --- LAYOUT PARAMS (Force Size) ---
+                                        ViewGroup parent = (ViewGroup) originalImageView.getParent();
+                                        ViewGroup.LayoutParams params;
+                                        
+                                        // Parent detect karke sahi params lagao
+                                        if (parent instanceof FrameLayout) {
+                                            FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(
+                                                ViewGroup.LayoutParams.WRAP_CONTENT, 
+                                                ViewGroup.LayoutParams.WRAP_CONTENT
+                                            );
+                                            flp.gravity = Gravity.CENTER;
+                                            params = flp;
+                                        } else if (parent instanceof LinearLayout) {
+                                            LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(
+                                                ViewGroup.LayoutParams.WRAP_CONTENT, 
+                                                ViewGroup.LayoutParams.WRAP_CONTENT
+                                            );
+                                            llp.gravity = Gravity.CENTER;
+                                            params = llp;
+                                        } else {
+                                            // Generic Fallback
+                                            params = new ViewGroup.LayoutParams(300, 120); // Fixed size fallback
+                                        }
+                                        
+                                        btn.setLayoutParams(params);
+
+                                        // --- CLICK FIX (Reflection) ---
+                                        // Image ka 'soul' nikal kar click call karenge
+                                        btn.setOnClickListener(v -> {
+                                            try {
+                                                // Method 1: Reflection on Image Listener
+                                                Object listenerInfo = XposedHelpers.getObjectField(originalImageView, "mListenerInfo");
+                                                if (listenerInfo != null) {
+                                                    View.OnClickListener originalListener = (View.OnClickListener) XposedHelpers.getObjectField(listenerInfo, "mOnClickListener");
+                                                    if (originalListener != null) {
+                                                        originalListener.onClick(originalImageView);
+                                                        return;
+                                                    }
+                                                }
+                                                // Method 2: Fallback to Parent
+                                                if (originalImageView.getParent() instanceof View) {
+                                                    ((View)originalImageView.getParent()).performClick();
+                                                }
+                                            } catch (Throwable t) {
+                                                // Method 3: Last Resort Fallback
+                                                try {
+                                                    ((View)originalImageView.getParent()).performClick();
+                                                } catch(Throwable t2) {}
+                                            }
+                                        });
+
+                                        // Button Add Karo
+                                        parent.addView(btn);
+                                        
+                                        // Request Layout Update
+                                        parent.requestLayout();
+
+                                    } else {
+                                        // Button Already Exists: Show it
+                                        if(existingBtn.getVisibility() != View.VISIBLE) {
+                                            existingBtn.setVisibility(View.VISIBLE);
+                                            existingBtn.bringToFront();
+                                        }
+                                    }
+                                } else {
+                                    // Agar Image nahi hai (Text msg), to Button HATAO
+                                    if (existingBtn != null) {
+                                        existingBtn.setVisibility(View.GONE);
+                                    }
+                                }
+                            }
+                        } catch (Throwable t) { 
+                            // Error handling
+                        }
+                        // --- FIX END ---
+
+                        for (OnConversationItemListener listener : conversationListeners) {
+                            viewGroup.post(() -> listener.onItemBind(fMessage, viewGroup));
+                        }
+                    }
+                });
             }
         });
     }
 
-    @NonNull @Override public String getPluginName() { return "Contact Item Listener"; }
-    public abstract static class OnContactItemListener { public abstract void onBind(WaContactWpp waContact, View view); }
+    @NonNull @Override public String getPluginName() { return "Conversation Item Listener"; }
+    public abstract static class OnConversationItemListener { public abstract void onItemBind(FMessageWpp fMessage, ViewGroup viewGroup); }
 }
