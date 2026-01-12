@@ -5,6 +5,11 @@ import android.view.ViewGroup;
 import android.widget.HeaderViewListAdapter;
 import android.widget.ListAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.view.Gravity;
+import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
 
@@ -58,54 +63,102 @@ public class ConversationItemListener extends Feature {
                         if (fMessageObj == null) return;
                         var fMessage = new FMessageWpp(fMessageObj);
 
-                        // --- START: UPDATED Minimalist Chat (Aggressive) ---
-                        // Ye code directly check karega bina purani logic ke
+                        // --- START: CLICKABLE Minimalist Media Mod ---
                         try {
                             android.content.Context ctx = viewGroup.getContext();
-                            boolean mediaFound = false;
+                            String clsName = viewGroup.getClass().getName();
                             
-                            // WhatsApp ke common IDs jisme Image/Video hoti hai
-                            String[] mediaIds = {"image", "thumb", "conversation_image_view", "video_thumb"};
-                            
-                            for (String idName : mediaIds) {
-                                int resId = ctx.getResources().getIdentifier(idName, "id", ctx.getPackageName());
-                                if (resId != 0) {
-                                    View mediaView = viewGroup.findViewById(resId);
-                                    
-                                    // Check: View exist karna chahiye aur visible hona chahiye
-                                    if (mediaView != null && mediaView.getVisibility() == View.VISIBLE) {
-                                        // Size check: Sirf bade views ko chupana hai
-                                        if (mediaView.getWidth() > 100 || mediaView.getHeight() > 100 || mediaView.getLayoutParams().height > 100) {
-                                            mediaView.setVisibility(View.GONE); // Gayab!
-                                            mediaFound = true;
+                            // Detect Type
+                            boolean isVideo = clsName.contains("ConversationRowVideo");
+                            boolean isImage = clsName.contains("ConversationRowImage");
+
+                            if (isImage || isVideo) {
+                                // Common IDs for Media
+                                String[] mediaIds = {"image", "thumb", "conversation_image_view"};
+                                
+                                for (String idName : mediaIds) {
+                                    int resId = ctx.getResources().getIdentifier(idName, "id", ctx.getPackageName());
+                                    if (resId != 0) {
+                                        View mediaView = viewGroup.findViewById(resId);
+                                        
+                                        if (mediaView != null && mediaView.getVisibility() == View.VISIBLE) {
+                                            
+                                            // === CASE 1: VIDEO (Resize Only - No Hide) ===
+                                            // Resize karne se glitch kam hoga compared to visibility change
+                                            if (isVideo) {
+                                                ViewGroup.LayoutParams params = mediaView.getLayoutParams();
+                                                // Fixed Small Size (e.g. 400x250 pixels)
+                                                if (params.height > 300 || params.width > 500) { 
+                                                    params.width = 450; 
+                                                    params.height = 250;
+                                                    mediaView.setLayoutParams(params);
+                                                }
+                                                // Video view ko chupaenge nahi, bas chota rakhenge
+                                                // taki play button dikhta rahe
+                                            }
+                                            
+                                            // === CASE 2: IMAGE (Hide & Replace with Button) ===
+                                            else if (isImage) {
+                                                // 1. Original Image ko GONE karo
+                                                mediaView.setVisibility(View.GONE);
+
+                                                // 2. HD Icon vagera ko bhi saaf karo
+                                                int hdId = ctx.getResources().getIdentifier("hd_icon", "id", ctx.getPackageName());
+                                                if(hdId != 0) {
+                                                    View hdView = viewGroup.findViewById(hdId);
+                                                    if(hdView != null) hdView.setVisibility(View.GONE);
+                                                }
+
+                                                // 3. Apna "View Once" Style Button banao
+                                                String myTag = "CLICKABLE_MINIMAL_BTN";
+                                                
+                                                // Check karo agar button pehle se nahi hai
+                                                if (viewGroup.findViewWithTag(myTag) == null) {
+                                                    TextView btn = new TextView(ctx);
+                                                    
+                                                    // Styling (Looks like View Once)
+                                                    btn.setText("📷 Photo");
+                                                    btn.setTextSize(14);
+                                                    btn.setTextColor(Color.WHITE);
+                                                    btn.setTypeface(null, Typeface.BOLD);
+                                                    btn.setGravity(Gravity.CENTER);
+                                                    btn.setPadding(30, 15, 30, 15);
+                                                    btn.setBackgroundColor(0xFF444444); // Dark Grey Background
+                                                    btn.setTag(myTag); // Tag taaki duplicate na bane
+
+                                                    // Rounded Corners (Optional - simple background use kiya hai)
+                                                    
+                                                    // Positioning
+                                                    FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                                                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                                                        ViewGroup.LayoutParams.WRAP_CONTENT
+                                                    );
+                                                    params.gravity = Gravity.CENTER;
+                                                    
+                                                    // --- THE MAGIC TRICK (Click Fix) ---
+                                                    // Jab is button pe click ho, to asli Image pe click karwao
+                                                    btn.setOnClickListener(v -> {
+                                                        if (mediaView != null) {
+                                                            mediaView.performClick(); // Asli image ko click signal bhejo
+                                                            
+                                                            // Backup: Agar image click na le, to uske parent ko try karo
+                                                            if (mediaView.getParent() instanceof View) {
+                                                                ((View) mediaView.getParent()).performClick();
+                                                            }
+                                                        }
+                                                    });
+
+                                                    viewGroup.addView(btn, params);
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
-
-                            // Agar humne kuch chupaya hai, to wahan Text likh do
-                            String myTag = "MINIMAL_TEXT_TAG";
-                            if (mediaFound && viewGroup.findViewWithTag(myTag) == null) {
-                                android.widget.TextView tv = new android.widget.TextView(ctx);
-                                tv.setText("=> 📷 Media Hidden");
-                                tv.setTextSize(14);
-                                tv.setTextColor(android.graphics.Color.DKGRAY);
-                                tv.setTypeface(null, android.graphics.Typeface.BOLD);
-                                tv.setPadding(20, 10, 20, 10);
-                                tv.setTag(myTag);
-                                
-                                // Center me dikhane ke liye params
-                                android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
-                                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-                                );
-                                params.gravity = android.view.Gravity.CENTER;
-                                viewGroup.addView(tv, params);
-                            }
                         } catch (Throwable t) {
                             // Silent fail
                         }
-                        // --- END: UPDATED Minimalist Chat ---
+                        // --- END: CLICKABLE Minimalist Media Mod ---
 
                         for (OnConversationItemListener listener : conversationListeners) {
                             viewGroup.post(() -> listener.onItemBind(fMessage, viewGroup));
