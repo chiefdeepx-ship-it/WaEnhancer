@@ -35,18 +35,12 @@ public class ContactItemListener extends Feature {
                 var viewField = ReflectionUtils.findFieldUsingFilter(absViewHolderClass, field -> field.getType() == View.class);
                 var view = (View) viewField.get(viewHolder);
 
-                // --- START: BALANCED HOME SCREEN FIX ---
+                // --- START: FINAL BALANCED LAYOUT FIX ---
                 try {
                     android.content.Context ctx = view.getContext();
 
-                    // 1. DP HIDE (Home + Contact List)
-                    String[] killList = {
-                        "contact_selector",         // Main Box
-                        "contact_photo_row", 
-                        "contactpicker_row_photo",  // New Chat
-                        "photo_btn"
-                    };
-
+                    // 1. DP HIDE (Same as before)
+                    String[] killList = {"contact_selector", "contact_photo_row", "contactpicker_row_photo", "photo_btn"};
                     for (String id : killList) {
                         int resId = ctx.getResources().getIdentifier(id, "id", ctx.getPackageName());
                         if (resId != 0) {
@@ -54,41 +48,41 @@ public class ContactItemListener extends Feature {
                             if (target != null) {
                                 target.setVisibility(View.GONE);
                                 ViewGroup.LayoutParams lp = target.getLayoutParams();
-                                if (lp != null) { 
-                                    lp.width = 0; // Size 0 karte hi Text left bhaagta hai (ise niche rokenge)
-                                    target.setLayoutParams(lp); 
-                                }
+                                if (lp != null) { lp.width = 0; target.setLayoutParams(lp); }
                             }
                         }
                     }
 
-                    // 2. NAME FIX (Text ko wapas Right dhakka do)
+                    // 2. NAME FIX (Keep Left Side Clean)
                     int textContainerId = ctx.getResources().getIdentifier("contact_row_container", "id", ctx.getPackageName());
                     if (textContainerId != 0) {
                         View textContainer = view.findViewById(textContainerId);
                         if (textContainer != null) {
-                            // Padding 0 kar do taaki calculation easy ho
-                            textContainer.setPadding(0, textContainer.getPaddingTop(), textContainer.getPaddingRight(), textContainer.getPaddingBottom());
+                            // Step A: Container ko Right shift karo (Naam sahi jagah aayega)
+                            // Aapne 55 bola tha, main 60 kar raha hu safety ke liye
+                            textContainer.setTranslationX(60f); 
                             
-                            // ISKO DEKHO: +55f (Positive) matlab Right Side Shift
-                            // Ye text ko diwar se door karega
-                            textContainer.setTranslationX(55f); 
+                            // Step B: ***NEW*** RIGHT PADDING ADD KARO
+                            // Kyunki humne dabba right khiska diya, to right side ka text kat raha hai.
+                            // Hum Right side me 80px ki padding de rahe hain taaki text pehle hi ruk jaye.
+                            textContainer.setPadding(0, textContainer.getPaddingTop(), 100, textContainer.getPaddingBottom());
                         }
                     }
 
-                    // 3. DATE FIX (Time ko wapas Left khicho)
+                    // 3. DATE/TIMESTAMP FIX (Corner se bahar nikalo)
                     int dateId = ctx.getResources().getIdentifier("date_time", "id", ctx.getPackageName());
                     if (dateId != 0) {
                         View dateView = view.findViewById(dateId);
                         if (dateView != null) {
-                            // ISKO DEKHO: -45f (Negative) matlab Left Side Pull
-                            // Ye date ko screen ke andar wapas layega
-                            dateView.setTranslationX(-45f);
+                            // Logic: Container +60 gaya hai.
+                            // Hamein Date ko wapas lana hai (-60) + thoda aur gap dena hai (-40).
+                            // Total = -100 ya -120 safely.
+                            dateView.setTranslationX(-120f);
                         }
                     }
 
                 } catch (Throwable t) {}
-                // --- END: BALANCED HOME SCREEN FIX ---
+                // --- END: FINAL BALANCED LAYOUT FIX ---
 
                 var userJid = waContact.getUserJid();
                 if (userJid.isNull()) return;
