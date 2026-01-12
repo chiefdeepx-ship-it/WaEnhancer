@@ -35,12 +35,17 @@ public class ContactItemListener extends Feature {
                 var viewField = ReflectionUtils.findFieldUsingFilter(absViewHolderClass, field -> field.getType() == View.class);
                 var view = (View) viewField.get(viewHolder);
 
-                // --- START: FINAL ID FIX ---
+                // --- START: FINAL ID FIX (REPAIRED) ---
                 try {
                     android.content.Context ctx = view.getContext();
 
-                    // 1. DP HIDE (Original Code Logic - GONE)
-                    String[] killList = {"contact_selector", "contact_photo_row", "contactpicker_row_photo", "photo_btn"};
+                    // 1. DP HIDE -> GONE (Jaisa original me tha - Space bhi khatam)
+                    String[] killList = {
+                        "contact_selector", 
+                        "contact_photo_row", 
+                        "contactpicker_row_photo", 
+                        "photo_btn"
+                    };
                     for (String id : killList) {
                         int resId = ctx.getResources().getIdentifier(id, "id", ctx.getPackageName());
                         if (resId != 0) {
@@ -53,12 +58,15 @@ public class ContactItemListener extends Feature {
                         }
                     }
 
-                    // 2. MESSAGE & DATE HIDE (New Logic - INVISIBLE)
-                    // Ye dikhenge nahi par JAGAH gherenge taaki chats chipke nahi
+                    // 2. INVISIBLE LIST (Nayi IDs + Date/Msg added here)
+                    // Inhe gayab karna hai par JAGAH rakhni hai
                     String[] invisibleList = {
-                        "single_msg_tv",          // Message Preview
-                        "conversations_row_date", // Date/Time
-                        "date_time"               // Backup Date ID
+                        "single_msg_tv",          // Message Text
+                        "conversations_row_date", // Date Text
+                        "date_time",              // Backup Date ID
+                        "message_type_indicator", // Camera/Mic Icon (Screenshot se)
+                        "status_indicator",       // Green/Grey Dot (Screenshot se)
+                        "msg_from_tv"             // Group Sender Name (Screenshot se)
                     };
 
                     for (String id : invisibleList) {
@@ -71,22 +79,30 @@ public class ContactItemListener extends Feature {
                         }
                     }
 
-                    // 3. CONTAINER SHIFT (Original Code Logic)
-                    // Isko waise hi rakha hai jaisa aapne diya tha
+                    // 3. POSITIONING (Exact Original Logic Restored)
+                    
+                    // A. Container ko Shift karo
                     int textContainerId = ctx.getResources().getIdentifier("contact_row_container", "id", ctx.getPackageName());
                     if (textContainerId != 0) {
                         View textContainer = view.findViewById(textContainerId);
                         if (textContainer != null) {
-                            // Left se 60px khiskao (Naam ke liye jagah)
                             textContainer.setTranslationX(60f); 
-                            
-                            // Right side se 120px padding
                             textContainer.setPadding(0, textContainer.getPaddingTop(), 120, textContainer.getPaddingBottom());
                         }
                     }
 
-                    // Note: Date shifting logic hata diya hai kyunki date ab INVISIBLE hai, 
-                    // toh use move karne ki zaroorat nahi hai.
+                    // B. Date ko wapas Shift karo (Original code logic wapas daal diya)
+                    // Bhale hi ye Invisible hai, par code logic same rakh raha hu taaki crash/layout issue na ho
+                    String[] dateIds = {"conversations_row_date", "date_time"};
+                    for (String dId : dateIds) {
+                        int dateResId = ctx.getResources().getIdentifier(dId, "id", ctx.getPackageName());
+                        if (dateResId != 0) {
+                            View dateView = view.findViewById(dateResId);
+                            if (dateView != null) {
+                                dateView.setTranslationX(-120f); // Ye line wapas add kar di
+                            }
+                        }
+                    }
 
                 } catch (Throwable t) {}
                 // --- END: FINAL ID FIX ---
