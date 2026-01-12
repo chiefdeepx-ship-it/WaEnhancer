@@ -1,5 +1,4 @@
-package package com.wmods.wppenhacer.xposed.features;
-// Package name apne project ke hisab se adjust karein
+package com.wmods.wppenhacer.xposed.features;
 
 import android.appwidget.AppWidgetManager;
 import android.content.Context;
@@ -7,19 +6,18 @@ import android.widget.RemoteViews;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
-import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public class WidgetBlocker {
 
-    public static void init(XC_LoadPackage.LoadPackageParam lpparam) {
-        // Sirf WhatsApp process me hi hook karein
-        if (!lpparam.packageName.equals("com.whatsapp")) {
-            return;
-        }
-
-        XposedBridge.log("WA Enhancer: Hooking Widget Manager for " + lpparam.packageName);
+    public static void init(ClassLoader loader) {
+        
+        XposedBridge.log("WA Enhancer: Hooking Widget Manager...");
 
         try {
+            // AppWidgetManager ka class load karte hain
+            // Note: AppWidgetManager Android framework ka hissa hai, isliye seedha class use kar sakte hain
+            // Lekin agar error aaye to XposedHelpers.findClass use karein
+            
             XposedHelpers.findAndHookMethod(
                 AppWidgetManager.class,
                 "updateAppWidget",
@@ -32,10 +30,10 @@ public class WidgetBlocker {
                         
                         if (views == null) return;
 
-                        // Context nikalna ID dhundne ke liye
-                        // Hum current thread se context uthayenge
+                        // Context nikalna resource ID dhundne ke liye
+                        // Hum current thread se application context uthayenge
                         Context context = (Context) XposedHelpers.callMethod(
-                            XposedHelpers.findClass("android.app.ActivityThread", lpparam.classLoader), 
+                            XposedHelpers.findClass("android.app.ActivityThread", loader), 
                             "currentApplication"
                         );
 
@@ -44,7 +42,6 @@ public class WidgetBlocker {
                             int headerId = context.getResources().getIdentifier("header", "id", "com.whatsapp");
                             if (headerId != 0) {
                                 views.setOnClickPendingIntent(headerId, null);
-                                // XposedBridge.log("WA Enhancer: Widget Header Blocked");
                             }
 
                             // 2. LIST (Messages) ko Unclickable banana
@@ -52,7 +49,6 @@ public class WidgetBlocker {
                             if (listId != 0) {
                                 // "setPendingIntentTemplate" list items ke click manage karta hai
                                 views.setPendingIntentTemplate(listId, null);
-                                // XposedBridge.log("WA Enhancer: Widget List Blocked");
                             }
                             
                             // 3. (Optional) Compose Button (Agar widget me hai to)
@@ -65,7 +61,7 @@ public class WidgetBlocker {
                 }
             );
         } catch (Throwable t) {
-            XposedBridge.log("WA Enhancer Error: " + t.getMessage());
+            XposedBridge.log("WA Enhancer WidgetBlocker Error: " + t.getMessage());
         }
     }
 }
