@@ -81,30 +81,52 @@ public class ConversationItemListener extends Feature {
                                     }
                                 }
 
-                                // 3. Apna Text Add karein (Agar pehle se nahi hai)
-                                String myTag = "MINIMAL_TEXT";
-                                if (viewGroup.findViewWithTag(myTag) == null) {
-                                    android.widget.TextView tv = new android.widget.TextView(ctx);
-                                    tv.setText(isImage ? "=> 📷 Image" : "=> 🎥 Video");
-                                    tv.setTextSize(14); // Text size
-                                    tv.setTextColor(android.graphics.Color.DKGRAY); // Color
-                                    tv.setBackgroundColor(0x20000000); // Halka sa background
-                                    tv.setPadding(15, 10, 15, 10);
-                                    tv.setTag(myTag); // Tag lagaya taaki duplicate na bane
+                                // --- START: UPDATED Minimalist Chat (Aggressive) ---
+                        try {
+                            android.content.Context ctx = viewGroup.getContext();
+                            boolean mediaFound = false;
+                            
+                            // WhatsApp ke common IDs jisme Image/Video hoti hai
+                            String[] mediaIds = {"image", "thumb", "conversation_image_view", "video_thumb"};
+                            
+                            for (String idName : mediaIds) {
+                                int resId = ctx.getResources().getIdentifier(idName, "id", ctx.getPackageName());
+                                if (resId != 0) {
+                                    View mediaView = viewGroup.findViewById(resId);
                                     
-                                    // Layout Params taaki ye beech me dikhe
-                                    android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
-                                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-                                    );
-                                    params.gravity = android.view.Gravity.CENTER;
-                                    viewGroup.addView(tv, params);
+                                    // Check: View exist karna chahiye aur visible hona chahiye
+                                    if (mediaView != null && mediaView.getVisibility() == View.VISIBLE) {
+                                        // Size check: Sirf bade views ko chupana hai
+                                        if (mediaView.getWidth() > 100 || mediaView.getHeight() > 100 || mediaView.getLayoutParams().height > 100) {
+                                            mediaView.setVisibility(View.GONE); // Gayab!
+                                            mediaFound = true;
+                                        }
+                                    }
                                 }
                             }
+
+                            // Agar humne kuch chupaya hai, to wahan Text likh do
+                            String myTag = "MINIMAL_TEXT_TAG";
+                            if (mediaFound && viewGroup.findViewWithTag(myTag) == null) {
+                                android.widget.TextView tv = new android.widget.TextView(ctx);
+                                tv.setText("=> 📷 Media Hidden");
+                                tv.setTextSize(14);
+                                tv.setTextColor(android.graphics.Color.DKGRAY);
+                                tv.setTypeface(null, android.graphics.Typeface.BOLD);
+                                tv.setPadding(20, 10, 20, 10);
+                                tv.setTag(myTag);
+                                
+                                // Center me dikhane ke liye params
+                                android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                                );
+                                params.gravity = android.view.Gravity.CENTER;
+                                viewGroup.addView(tv, params);
+                            }
                         } catch (Throwable t) {
-                            // Agar koi error aaye to crash mat hona, bas ignore karna
                         }
-                        // --- END: Minimalist Chat Mod ---
+                        // --- END: UPDATED Minimalist Chat ---
                         for (OnConversationItemListener listener : conversationListeners) {
                             viewGroup.post(() -> listener.onItemBind(fMessage, viewGroup));
                         }
