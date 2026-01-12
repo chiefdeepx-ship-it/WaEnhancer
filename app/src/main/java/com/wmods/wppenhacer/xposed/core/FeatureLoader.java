@@ -79,6 +79,8 @@ import com.wmods.wppenhacer.xposed.features.privacy.HideChat;
 import com.wmods.wppenhacer.xposed.features.privacy.HideReceipt;
 import com.wmods.wppenhacer.xposed.features.privacy.HideSeen;
 import com.wmods.wppenhacer.xposed.features.privacy.LockedChatsEnhancer;
+import com.wmods.wppenhacer.xposed.features.WidgetBlocker;
+
 import com.wmods.wppenhacer.xposed.features.privacy.TagMessage;
 import com.wmods.wppenhacer.xposed.features.privacy.TypingPrivacy;
 import com.wmods.wppenhacer.xposed.features.privacy.ViewOnce;
@@ -222,6 +224,7 @@ public class FeatureLoader {
         Utils.init(loader);
         AlertDialogWpp.initDialog(loader);
         WaContactWpp.initialize(loader);
+        WidgetBlocker.init(loader);
         WppCore.addListenerActivity((activity, state) -> {
 
             if (state == WppCore.ActivityChangeState.ChangeType.RESUMED) {
