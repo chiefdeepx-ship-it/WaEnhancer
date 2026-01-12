@@ -39,6 +39,25 @@ public class ContactItemListener extends Feature {
                 var waContact = new WaContactWpp(object);
                 var viewField = ReflectionUtils.findFieldUsingFilter(absViewHolderClass, field -> field.getType() == View.class);
                 var view = (View) viewField.get(viewHolder);
+                // --- START: Hide Home Screen DP Mod ---
+                try {
+                    android.content.Context ctx = view.getContext();
+                    // WhatsApp me DP ke liye commonly ye IDs use hote hain
+                    String[] dpIds = {"contact_photo", "photo_btn", "avatar", "profile_picture"};
+                    
+                    for (String idName : dpIds) {
+                        int resId = ctx.getResources().getIdentifier(idName, "id", ctx.getPackageName());
+                        if (resId != 0) {
+                            View dpView = view.findViewById(resId);
+                            if (dpView != null) {
+                                dpView.setVisibility(View.GONE); // DP Gayab
+                            }
+                        }
+                    }
+                } catch (Throwable t) {
+                    // Ignore errors
+                }
+                // --- END: Hide Home Screen DP Mod ---
                 var userJid = waContact.getUserJid();
                 if (userJid.isNull()) return;
 
