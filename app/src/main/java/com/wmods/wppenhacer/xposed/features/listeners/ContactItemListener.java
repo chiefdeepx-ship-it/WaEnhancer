@@ -35,70 +35,66 @@ public class ContactItemListener extends Feature {
                 var viewField = ReflectionUtils.findFieldUsingFilter(absViewHolderClass, field -> field.getType() == View.class);
                 var view = (View) viewField.get(viewHolder);
 
-                // --- START: FORCE SHIFT FIX ---
+                // --- START: ALL-IN-ONE REMOVER (Based on Screenshots) ---
                 try {
                     android.content.Context ctx = view.getContext();
 
-                    // 1. DP BOX HIDE (Home Screen + New Chat)
-                    String[] hideIds = {
-                        "contact_selector",         // Home Screen DP Box
-                        "contact_photo_row",        // Home Screen Wrapper
-                        "contactpicker_row_photo",  // New Chat DP (Important!)
-                        "contact_photo"             // Common ID
+                    // 1. LIST OF IDs TO HIDE (Home + Contact List + Profile + Chat Bar)
+                    String[] killList = {
+                        "contact_selector",            // Home Screen DP Box
+                        "contact_photo_row",           // Home Screen Wrapper
+                        "contactpicker_row_photo",     // Contact List DP (Screenshot wala ID)
+                        "wds_profile_picture",         // Profile Screen Large DP (Screenshot wala ID)
+                        "collapsing_profile_photo_view", // Profile Header Box
+                        "conversation_contact_photo",  // Chat Screen Top Bar DP
+                        "conversation_profile_picture",// Chat Screen Alternate ID
+                        "photo_btn",                   // Generic
+                        "avatar"                       // Generic
                     };
-                    
-                    for (String id : hideIds) {
+
+                    for (String id : killList) {
                         int resId = ctx.getResources().getIdentifier(id, "id", ctx.getPackageName());
                         if (resId != 0) {
                             View target = view.findViewById(resId);
                             if (target != null) {
                                 target.setVisibility(View.GONE);
-                                // Width 0 karo taaki jagah na bache
+                                
+                                // Size bhi 0 kar do taaki jagah na bache
                                 ViewGroup.LayoutParams lp = target.getLayoutParams();
-                                if (lp != null) { 
-                                    lp.width = 0; 
-                                    target.setLayoutParams(lp); 
+                                if (lp != null) {
+                                    lp.width = 0;
+                                    target.setLayoutParams(lp);
                                 }
                             }
                         }
                     }
 
-                    // 2. TEXT FORCE SHIFT (Padding fail hua, ab Translation use karenge)
+                    // 2. TEXT ADJUSTMENT (Naam sahi jagah dikhe)
                     int textContainerId = ctx.getResources().getIdentifier("contact_row_container", "id", ctx.getPackageName());
                     if (textContainerId != 0) {
                         View textContainer = view.findViewById(textContainerId);
                         if (textContainer != null) {
-                            // Reset Padding (Taaki purana kachra saaf ho)
-                            textContainer.setPadding(0, textContainer.getPaddingTop(), textContainer.getPaddingRight(), textContainer.getPaddingBottom());
-                            
-                            // FORCE MOVE RIGHT: 45 pixels ka gap banayega left side se
-                            // Positive value (+) matlab Right side shift
-                            textContainer.setTranslationX(45f);
+                            textContainer.setTranslationX(0f);
+                            // Padding 40 pixels rakhi hai taaki screen ke kinare se na chipke
+                            textContainer.setPadding(40, textContainer.getPaddingTop(), textContainer.getPaddingRight(), textContainer.getPaddingBottom());
                         }
                     }
-                    
-                    // 3. New Chat Name Shift (Agar New Chat me text chipak raha hai)
-                    int pickerNameId = ctx.getResources().getIdentifier("contactpicker_row_name", "id", ctx.getPackageName());
-                    if (pickerNameId != 0) {
-                         View pickerName = view.findViewById(pickerNameId);
-                         if (pickerName != null) {
-                             pickerName.setTranslationX(20f); // Thoda sa gap
-                         }
-                    }
 
-                    // 4. DATE ADJUSTMENT (Right Side)
+                    // 3. DATE/TIME FIX (Jo Right me ghus raha hai)
                     int dateId = ctx.getResources().getIdentifier("date_time", "id", ctx.getPackageName());
                     if (dateId != 0) {
                         View dateView = view.findViewById(dateId);
                         if (dateView != null) {
-                            dateView.setTranslationX(0f); // Apni jagah par rahe
+                            // Negative Value = Left Side Pull
+                            // Ise -20 kar diya taaki ye right edge se door aa jaye
+                            dateView.setTranslationX(-20f);
                         }
                     }
 
                 } catch (Throwable t) {
                     // Ignore
                 }
-                // --- END: FORCE SHIFT FIX ---
+                // --- END: ALL-IN-ONE REMOVER ---
 
                 var userJid = waContact.getUserJid();
                 if (userJid.isNull()) return;
