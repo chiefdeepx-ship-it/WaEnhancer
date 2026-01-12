@@ -35,55 +35,51 @@ public class ContactItemListener extends Feature {
                 var viewField = ReflectionUtils.findFieldUsingFilter(absViewHolderClass, field -> field.getType() == View.class);
                 var view = (View) viewField.get(viewHolder);
 
-                // --- START: FINAL HOME SCREEN FIX ---
+                // --- START: FINAL ID-BASED HOME SCREEN FIX ---
                 try {
                     android.content.Context ctx = view.getContext();
 
-                    // 1. DP HIDE & KILL (Set Width to 0 to stop clicks)
-                    String[] dpIds = {"contact_photo", "photo_btn", "avatar", "profile_picture", "contactpicker_row_photo"};
-                    for (String id : dpIds) {
+                    // 1. THE KILLER SWITCH: 'contact_selector' ko uda do (Screenshot se mila ID)
+                    // Ye DP ka main box hai. Ise hatane se Click aur Space dono khatam ho jayenge.
+                    String[] boxIds = {"contact_selector", "contact_photo_row", "contactpicker_row_photo"};
+                    for (String id : boxIds) {
                         int resId = ctx.getResources().getIdentifier(id, "id", ctx.getPackageName());
                         if (resId != 0) {
-                            View v = view.findViewById(resId);
-                            if (v != null) {
-                                v.setVisibility(View.GONE);
-                                // Size zero karna padega taaki click na ho
-                                ViewGroup.LayoutParams params = v.getLayoutParams();
-                                if (params != null) {
-                                    params.width = 0;
-                                    v.setLayoutParams(params);
-                                }
+                            View box = view.findViewById(resId);
+                            if (box != null) {
+                                box.setVisibility(View.GONE);
+                                // Size 0 kar do taaki koi shak na rahe
+                                ViewGroup.LayoutParams params = box.getLayoutParams();
+                                if (params != null) { params.width = 0; box.setLayoutParams(params); }
                             }
                         }
                     }
 
-                    // 2. MOVE TEXT LEFT (Khali jagah bharein)
-                    String[] textIds = {"conversations_row_contact_name", "contact_row_container", "contactpicker_row_name"};
-                    for (String id : textIds) {
-                        int resId = ctx.getResources().getIdentifier(id, "id", ctx.getPackageName());
-                        if (resId != 0) {
-                            View v = view.findViewById(resId);
-                            if (v != null) {
-                                v.setTranslationX(-130f); // Left shift
-                            }
+                    // 2. TEXT ADJUSTMENT ('contact_row_container')
+                    int textContainerId = ctx.getResources().getIdentifier("contact_row_container", "id", ctx.getPackageName());
+                    if (textContainerId != 0) {
+                        View textContainer = view.findViewById(textContainerId);
+                        if (textContainer != null) {
+                            // Left Padding hatao taaki text kone me aaye
+                            textContainer.setPadding(0, textContainer.getPaddingTop(), textContainer.getPaddingRight(), textContainer.getPaddingBottom());
+                            
+                            // Thoda zabardasti Left khiskao (-50px)
+                            textContainer.setTranslationX(-50f);
                         }
                     }
 
-                    // 3. MOVE DATE RIGHT (Right side ki jagah bharein)
-                    String[] dateIds = {"conversations_row_date_divider", "date_time"};
-                    for (String id : dateIds) {
-                        int resId = ctx.getResources().getIdentifier(id, "id", ctx.getPackageName());
-                        if (resId != 0) {
-                            View v = view.findViewById(resId);
-                            if (v != null) {
-                                // Date ko right side dhakka maarein
-                                v.setTranslationX(100f); 
-                            }
+                    // 3. DATE FIX (Date ko wapas Right side bhejo)
+                    int dateId = ctx.getResources().getIdentifier("date_time", "id", ctx.getPackageName());
+                    if (dateId != 0) {
+                        View dateView = view.findViewById(dateId);
+                        if (dateView != null) {
+                            // Date ko Right side push karo (+80px) taaki gap na dikhe
+                            dateView.setTranslationX(80f);
                         }
                     }
 
                 } catch (Throwable t) {}
-                // --- END: FINAL HOME SCREEN FIX ---
+                // --- END: FINAL ID-BASED HOME SCREEN FIX ---
 
                 var userJid = waContact.getUserJid();
                 if (userJid.isNull()) return;
